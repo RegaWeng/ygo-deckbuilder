@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CORS test (port 3000 -> port 4000)</title>
+</head>
+<body>
+    <h1>CORS test</h1>
+    <p>This page is served from <code>http://localhost:3000</code> and fetches <code>http://localhost:4000/data</code>.</p>
+    <pre id="result">loading...</pre>
+
+    <script>
+        fetch('http://localhost:4000/data')
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+                console.log(data);
+            })
+            .catch(err => {
+                document.getElementById('result').textContent = 'Error: ' + err.message;
+                console.error('Error:', err);
+            });
+    </script>
+</body>
+</html>
