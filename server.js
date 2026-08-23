@@ -8,4 +8,4 @@ app.get('/data', (req, res) => {
     res.json({ message: "Security fetched."});
 });
 
-app.listen(4000,() => console.log('Server running on http://localhost:4000'));
+app.listen(3000,() => console.log('Server running on http://localhost:3000'));
