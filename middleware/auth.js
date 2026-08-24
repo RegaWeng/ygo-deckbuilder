@@ -25,3 +25,5 @@ module.exports = {requireAuth};
 
 //if the catch block trigger, it will send back HTTP JSON response back to clients-side.
 //without next(), the response leave hang= silence.
+
+//Auth.js only for authentication.
