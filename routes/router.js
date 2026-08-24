@@ -1,28 +1,22 @@
-//**This JS are importing getAll function from controller js */
-const { getAll, createCharacter, updateCharacter, deleteCharacter, getCharacterById } = require(`../controllers/controller.js`);
-const { searchCharacters } = require('../finds/find.js');
 const express = require('express');
-
 const router = express.Router();
+
 const { signup } = require('../controllers/signup.js');
-const { login } = require('../controllers/jwt.js');
-const { requireRole } = require('../middleware/role.js');
+const { login } = require('../controllers/login.js');
+const { createDeck } = require('../controllers/createDeck.js');
+const { updateDeck } = require('../controllers/updateDeck.js');
+const { deleteDeck } = require('../controllers/deleteDeck.js');
+const { getAllDecksForUser } = require('../controllers/getAllDecksForUser.js');
+const { getDeckById } = require('../controllers/getDeckById.js');
 const { requireAuth } = require('../middleware/auth.js');
 
-
-router.get("/", getAll);
-router.get("/characters/search", searchCharacters);
-
-router.post("/characters", requireAuth, requireRole(['worker', 'super_admin']), createCharacter);
-router.put("/characters/:id", requireAuth, requireRole(['worker', 'super_admin']), updateCharacter); 
-router.patch("/characters/:id", requireAuth, requireRole(['worker', 'super_admin']), updateCharacter);
-router.delete("/characters/:id", requireAuth, requireRole(['worker', 'super_admin']), deleteCharacter);
-
-router.get("/characters/:id", getCharacterById);
 router.post('/register', signup);
 router.post('/login', login);
-router.get('/protected', requireAuth, (req, res) => {
-    res.json({ message: 'This is a protected route' });
-});
+
+router.get('/decks', requireAuth, getAllDecksForUser);
+router.post('/decks', requireAuth, createDeck);
+router.get('/decks/:id', requireAuth, getDeckById);
+router.put('/decks/:id', requireAuth, updateDeck);
+router.delete('/decks/:id', requireAuth, deleteDeck);
 
 module.exports = router;
