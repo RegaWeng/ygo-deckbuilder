@@ -1,24 +1,128 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>CORS test (port 3000 -> port 4000)</title>
+  <title>Deck Builder — CRUD Tester</title>
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: 40px auto; }
+    fieldset { margin-bottom: 20px; }
+    input { display: block; margin: 6px 0; width: 100%; }
+    pre { background: #f4f4f4; padding: 10px; white-space: pre-wrap; }
+  </style>
 </head>
 <body>
-    <h1>CORS test</h1>
-    <p>This page is served from <code>http://localhost:3000</code> and fetches <code>http://localhost:4000/data</code>.</p>
-    <pre id="result">loading...</pre>
 
-    <script>
-        fetch('http://localhost:4000/data')
-            .then(res => res.json())
-            .then(data => {
-                document.getElementById('result').textContent = JSON.stringify(data, null, 2);
-                console.log(data);
-            })
-            .catch(err => {
-                document.getElementById('result').textContent = 'Error: ' + err.message;
-                console.error('Error:', err);
-            });
-    </script>
+  <fieldset>
+    <legend>Register</legend>
+    <input id="reg-username" placeholder="username">
+    <input id="reg-password" placeholder="password" type="password">
+    <input id="reg-email" placeholder="email">
+    <button onclick="register()">Register</button>
+  </fieldset>
+
+  <fieldset>
+    <legend>Login</legend>
+    <input id="login-username" placeholder="username">
+    <input id="login-password" placeholder="password" type="password">
+    <button onclick="login()">Login</button>
+    <p>Token: <span id="token-display">none</span></p>
+  </fieldset>
+
+  <fieldset>
+    <legend>Decks</legend>
+    <button onclick="listDecks()">List my decks</button>
+    <input id="deck-name" placeholder="deck name">
+    <select id="deck-format">
+      <option value="TCG">TCG</option>
+      <option value="OCG">OCG</option>
+    </select>
+    <button onclick="createDeck()">Create deck</button>
+    <input id="deck-id" placeholder="deck id (for update/delete)">
+    <button onclick="updateDeck()">Update (uses name/format above)</button>
+    <button onclick="deleteDeck()">Delete</button>
+  </fieldset>
+
+  <h3>Response</h3>
+  <pre id="output">—</pre>
+
+<script>
+  let token = null;
+
+  function show(data) {
+    document.getElementById('output').textContent = JSON.stringify(data, null, 2);
+  }
+
+  async function register() {
+    const res = await fetch('/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: document.getElementById('reg-username').value,
+        password: document.getElementById('reg-password').value,
+        email: document.getElementById('reg-email').value,
+      }),
+    });
+    show(await res.json());
+  }
+
+  async function login() {
+    const res = await fetch('/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: document.getElementById('login-username').value,
+        password: document.getElementById('login-password').value,
+      }),
+    });
+    const data = await res.json();
+    if (data.token) {
+      token = data.token;
+      document.getElementById('token-display').textContent = token.slice(0, 20) + '...';
+    }
+    show(data);
+  }
+
+  function authHeaders() {
+    return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token };
+  }
+
+  async function listDecks() {
+    const res = await fetch('/decks', { headers: authHeaders() });
+    show(await res.json());
+  }
+
+  async function createDeck() {
+    const res = await fetch('/decks', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({
+        deck_name: document.getElementById('deck-name').value,
+        format: document.getElementById('deck-format').value,
+      }),
+    });
+    show(await res.json());
+  }
+
+  async function updateDeck() {
+    const id = document.getElementById('deck-id').value;
+    const res = await fetch('/decks/' + id, {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify({
+        deck_name: document.getElementById('deck-name').value,
+        format: document.getElementById('deck-format').value,
+      }),
+    });
+    show(await res.json());
+  }
+
+  async function deleteDeck() {
+    const id = document.getElementById('deck-id').value;
+    const res = await fetch('/decks/' + id, {
+      method: 'DELETE',
+      headers: authHeaders(),
+    });
+    show(res.status === 204 ? { status: 'deleted' } : await res.json());
+  }
+</script>
 </body>
 </html>
