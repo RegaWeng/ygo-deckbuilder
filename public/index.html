@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>YGO Deck Builder</title>
+  <style>
+    body { font-family: sans-serif; max-width: 900px; margin: 30px auto; padding: 0 20px; }
+    section { border: 1px solid #ccc; border-radius: 8px; padding: 16px; margin-bottom: 20px; }
+    h2 { margin-top: 0; }
+    input, select { display: block; margin: 6px 0; padding: 6px; width: 100%; box-sizing: border-box; }
+    button { margin: 6px 4px 6px 0; padding: 8px 14px; cursor: pointer; }
+    .deck-card { border: 1px solid #ddd; border-radius: 6px; padding: 10px; margin: 8px 0; }
+    .card-row { display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #eee; padding: 6px 0; }
+    .card-row img { width: 40px; }
+    #status { font-weight: bold; }
+    pre { background: #f4f4f4; padding: 10px; white-space: pre-wrap; max-height: 200px; overflow: auto; }
+  </style>
+</head>
+<body>
+
+<h1>YGO Deck Builder</h1>
+<p id="status">Not logged in</p>
+
+<section id="auth-section">
+  <h2>Account</h2>
+  <div>
+    <h3>Register</h3>
+    <input id="reg-username" placeholder="username">
+    <input id="reg-password" type="password" placeholder="password">
+    <input id="reg-email" placeholder="email">
+    <button onclick="register()">Register</button>
+  </div>
+  <div>
+    <h3>Login</h3>
+    <input id="login-username" placeholder="username">
+    <input id="login-password" type="password" placeholder="password">
+    <button onclick="login()">Login</button>
+    <button onclick="logout()">Logout</button>
+  </div>
+</section>
+
+<section id="decks-section">
+  <h2>My Decks</h2>
+  <button onclick="loadDecks()">Refresh deck list</button>
+  <div>
+    <h3>Create a deck</h3>
+    <input id="new-deck-name" placeholder="deck name">
+    <select id="new-deck-format">
+      <option value="TCG">TCG</option>
+      <option value="OCG">OCG</option>
+    </select>
+    <button onclick="createDeck()">Create</button>
+  </div>
+  <div id="deck-list"></div>
+</section>
+
+<section id="admin-section" style="display:none;">
+  <h2>Admin — User Management</h2>
+  <button onclick="loadUsers()">Refresh users</button>
+  <div id="user-list"></div>
+</section>
+
+<section id="account-section">
+  <h2>My Account</h2>
+  <button onclick="deleteMyAccount()">Delete my account</button>
+</section>
+
+<section id="deck-detail-section" style="display:none;">
+  <h2>Deck: <span id="detail-deck-name"></span></h2>
+  <button onclick="closeDeckDetail()">Close</button>
+  <button onclick="deleteCurrentDeck()">Delete this deck</button>
+  <div id="deck-cards-list"></div>
+
+  <h3>Search cards to add</h3>
+  <input id="card-search-input" placeholder="search card name">
+  <button onclick="searchCards()">Search</button>
+  <div id="card-search-results"></div>
+</section>
+
+<h2>Raw response</h2>
+<pre id="output">—</pre>
+
+<script>
+  const API = 'http://localhost:3000';
+  let currentDeckId = null;
+  let myRole = null;
+
+  function getToken() { return localStorage.getItem('token'); }
+  function setToken(t) { localStorage.setItem('token', t); updateStatus(); }
+  function logout() { localStorage.removeItem('token'); updateStatus(); }
+
+  function updateStatus() {
+    document.getElementById('status').textContent = getToken()
+      ? 'Logged in' : 'Not logged in';
+  }
+  updateStatus();
+
+  function show(data) {
+    document.getElementById('output').textContent = JSON.stringify(data, null, 2);
+  }
+
+  function authHeaders() {
+    return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getToken() };
+  }
+
+  async function register() {
+    const res = await fetch(`${API}/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: document.getElementById('reg-username').value,
+        password: document.getElementById('reg-password').value,
+        email: document.getElementById('reg-email').value,
+      }),
+    });
+    show(await res.json());
+  }
+
+  async function login() {
+    const res = await fetch(`${API}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: document.getElementById('login-username').value,
+        password: document.getElementById('login-password').value,
+      }),
+    });
+    const data = await res.json();
+    if (data.token) setToken(data.token);
+    checkMe();
+    show(data);
+  }
+
+  async function loadDecks() {
+    const res = await fetch(`${API}/decks`, { headers: authHeaders() });
+    const decks = await res.json();
+    show(decks);
+
+    const list = document.getElementById('deck-list');
+    list.innerHTML = '';
+    decks.forEach(deck => {
+      const div = document.createElement('div');
+      div.className = 'deck-card';
+      div.innerHTML = `<strong>${deck.deck_name}</strong> (${deck.format})
+        <button onclick="openDeckDetail(${deck.id})">Open</button>`;
+      list.appendChild(div);
+    });
+  }
+
+  async function createDeck() {
+    const res = await fetch(`${API}/decks`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({
+        deck_name: document.getElementById('new-deck-name').value,
+        format: document.getElementById('new-deck-format').value,
+      }),
+    });
+    show(await res.json());
+    loadDecks();
+  }
+
+  async function openDeckDetail(id) {
+    currentDeckId = id;
+    const res = await fetch(`${API}/decks/${id}`, { headers: authHeaders() });
+    const deck = await res.json();
+    show(deck);
+
+    document.getElementById('deck-detail-section').style.display = 'block';
+    document.getElementById('detail-deck-name').textContent = deck.deck_name;
+
+    const cardsList = document.getElementById('deck-cards-list');
+    cardsList.innerHTML = '';
+    deck.cards.forEach(entry => {
+      const row = document.createElement('div');
+      row.className = 'card-row';
+      row.innerHTML = `
+        ${entry.card ? `<img src="${entry.card.image_url}">` : ''}
+        <span>${entry.card ? entry.card.name : 'Unknown card'} — ${entry.section}, x${entry.quantity}</span>
+        <button onclick="removeCard(${entry.card.id}, '${entry.section}')">Remove</button>
+      `;
+      cardsList.appendChild(row);
+    });
+  }
+
+  function closeDeckDetail() {
+    document.getElementById('deck-detail-section').style.display = 'none';
+    currentDeckId = null;
+  }
+
+  async function deleteCurrentDeck() {
+    await fetch(`${API}/decks/${currentDeckId}`, { method: 'DELETE', headers: authHeaders() });
+    closeDeckDetail();
+    loadDecks();
+  }
+
+  async function searchCards() {
+    const q = document.getElementById('card-search-input').value;
+    const res = await fetch(`${API}/cards/search?q=${encodeURIComponent(q)}`);
+    const results = await res.json();
+    show(results);
+
+    const container = document.getElementById('card-search-results');
+    container.innerHTML = '';
+    results.slice(0, 10).forEach(card => {
+      const row = document.createElement('div');
+      row.className = 'card-row';
+      row.innerHTML = `
+        <span>${card.name}</span>
+        <button onclick="addCard(${card.id}, 'main')">Add to Main</button>
+      `;
+      container.appendChild(row);
+    });
+  }
+
+  async function addCard(cardId, section) {
+    const res = await fetch(`${API}/decks/${currentDeckId}/cards`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ card_id: cardId, section, quantity: 1 }),
+    });
+    show(await res.json());
+    openDeckDetail(currentDeckId);
+  }
+
+  async function removeCard(cardId, section) {
+    const res = await fetch(`${API}/decks/${currentDeckId}/cards/${cardId}`, {
+      method: 'DELETE',
+      headers: authHeaders(),
+      body: JSON.stringify({ section }),
+    });
+    show(res.status === 204 ? { status: 'removed' } : await res.json());
+    openDeckDetail(currentDeckId);
+  }
+
+  async function checkMe() {
+      if (!getToken()) return;
+      const res = await fetch(`${API}/me`, { headers: authHeaders() });
+      if (!res.ok) return;
+      const me = await res.json();
+      myRole = me.role;
+      document.getElementById('admin-section').style.display =
+          (myRole === 'super_admin') ? 'block' : 'none';
+  }
+
+  async function loadUsers() {
+      const res = await fetch(`${API}/users`, { headers: authHeaders() });
+      const users = await res.json();
+      show(users);
+
+      const list = document.getElementById('user-list');
+      list.innerHTML = '';
+      users.forEach(u => {
+          const row = document.createElement('div');
+          row.className = 'card-row';
+          const isSelf = u.username === document.getElementById('login-username').value;
+          row.innerHTML = `
+              <span>${u.username} (${u.email})</span>
+              <select id="role-${u.id}" ${isSelf ? 'disabled' : ''}>
+                  <option value="user" ${u.role==='user'?'selected':''}>user</option>
+                  <option value="worker" ${u.role==='worker'?'selected':''}>worker</option>
+                  <option value="super_admin" ${u.role==='super_admin'?'selected':''}>super_admin</option>
+              </select>
+              <button onclick="changeRole(${u.id})" ${isSelf ? 'disabled' : ''}>Save role</button>
+              <button onclick="deleteUser(${u.id})" ${isSelf ? 'disabled' : ''}>Delete</button>
+          `;
+          list.appendChild(row);
+      });
+  }
+
+  async function changeRole(id) {
+      const role = document.getElementById(`role-${id}`).value;
+      const res = await fetch(`${API}/users/${id}/role`, {
+          method: 'PUT',
+          headers: authHeaders(),
+          body: JSON.stringify({ role }),
+      });
+      show(await res.json());
+      loadUsers();
+  }
+
+  async function deleteUser(id) {
+      const res = await fetch(`${API}/users/${id}`, { method: 'DELETE', headers: authHeaders() });
+      show(res.status === 204 ? { status: 'deleted' } : await res.json());
+      loadUsers();
+  }
+
+  async function deleteMyAccount() {
+      await fetch(`${API}/me`, { method: 'DELETE', headers: authHeaders() });
+      logout();
+  }
+</script>
+</body>
+</html>

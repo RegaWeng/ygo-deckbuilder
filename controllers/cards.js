@@ -42,4 +42,4 @@ const searchCards = async (req, res) => {
     }
 };
 
-module.exports = { getCardById, searchCards };
+module.exports = { getCardById, searchCards, escapeRegex };
