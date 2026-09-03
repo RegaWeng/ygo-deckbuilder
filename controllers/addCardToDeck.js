@@ -1,5 +1,6 @@
 const pool = require('../db.js');
 const cardModel = require('../models/card.js');
+const { getChannel } = require('../config/rabbitmq.js');
 
 const addCardToDeck = async (req, res) => {
     const { id } = req.params;
@@ -13,6 +14,11 @@ const addCardToDeck = async (req, res) => {
 
         if (!deckResult.rows[0]) {
             return res.status(404).json({ error: 'Deck not found' });
+        }
+
+        const channel = getChannel();
+        if (channel) {
+            channel.sendToQueue('validate_deck', Buffer.from(JSON.stringify({ deck_id: id })), { persistent: true });
         }
 
         const card = await cardModel.findById(Number(card_id));

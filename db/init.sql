@@ -17,6 +17,8 @@ CREATE TABLE IF NOT EXISTS decks (
     deck_name VARCHAR(50) NOT NULL,
     format VARCHAR(10) NOT NULL DEFAULT 'TCG' CHECK (format IN ('TCG','OCG')),
     created_at TIMESTAMP DEFAULT NOW(),
+    validation_status VARCHAR(20) DEFAULT 'pending',
+    validation_message TEXT,
     UNIQUE (user_id, deck_name)
 );
 

@@ -17,6 +17,18 @@ services:
       timeout: 5s
       retries: 5
 
+  rabbitmq:
+    image: rabbitmq:3-management
+    restart: always
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   app:
     build: .
     restart: always
@@ -32,8 +44,28 @@ services:
       MONGO_URI: ${MONGO_URI}
       JWT_SECRET: ${JWT_SECRET}
       ALLOWED_ORIGIN: "*"
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
     depends_on:
       postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  worker:
+    build: .
+    restart: always
+    command: node worker/worker.js
+    environment:
+      PGHOST: postgres
+      PGUSER: postgres
+      PGPASSWORD: ${PGPASSWORD}
+      PGDATABASE: ygo_deckbuilder
+      PGPORT: 5432
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
 
 volumes:
