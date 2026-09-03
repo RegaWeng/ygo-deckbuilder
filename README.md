@@ -36,6 +36,17 @@ MONGO_URI=your_mongodb_atlas_connection_string
 ALLOWED_ORIGIN=*
 \`\`\`
 
+### Environment Variables — what each one actually needs
+
+- **`MONGO_URI`** — requires a real MongoDB Atlas connection string. Create a free cluster at mongodb.com/atlas, then run the seed script below once to populate it with card data.
+- **`JWT_SECRET`** — any random string you choose. Generate one securely with:
+  \`\`\`
+  node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+  \`\`\`
+- **`PGPASSWORD`** — any password you choose; used only for the local Docker Postgres container, no external account needed.
+
+**Important:** Postgres only sets its password once, the first time its data volume initializes. If you change `PGPASSWORD` after the containers have already started once, you must fully reset with `docker-compose down -v` (note the `-v`) before the new password takes effect — otherwise the app will fail to connect with a password authentication error.
+
 3. Run:
 \`\`\`
 docker-compose up --build
@@ -46,9 +57,9 @@ docker-compose up --build
 
 A `super_admin` account is seeded automatically on first container start:
 - Username: `admin`
-- Password: `adminpass123`
+- Password: `<your chosen plaintext password>`
 
-**Change this password if required** via `PUT /change-password` after first login — it's a known, documented default for demo/grading purposes only.
+**Change this password immediately** via `PUT /change-password` after first login — it's a known, documented default for demo/grading purposes only.
 
 ## Seeding the Card Catalog
 
@@ -70,6 +81,6 @@ npm test
 
 ## Known Limitations
 
-- Card images are hotlinked directly from YGOPRODeck's CDN rather than self-hosted .
+- Card images are hotlinked directly from YGOPRODeck's CDN rather than self-hosted.
 - The `worker` role is fully implemented (schema, middleware, JWT-independent role checks) but has no assigned permissions yet.
-- Password recovery uses a returned token rather than real email delivery, i didnt implement OAuth.
+- Password recovery uses a returned token rather than real email delivery, no OAuth involved for real email yet.
