@@ -12,4 +12,9 @@ app.use(cors({
     credentials: true,
 }));
 
+const swaggerUi = require('swagger-ui-express');
+const openapiSpec = require('./docs/openapi.json');
+
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(openapiSpec));
+
 module.exports = app;
