@@ -1,4 +1,5 @@
 const cardModel = require('../models/card.js');
+const { formatCard } = require('../utils/formatCard.js');
 
 const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -12,12 +13,10 @@ const getCardById = async (req, res) => {
 
     try {
         const card = await cardModel.findById(numericId);
-
         if (!card) {
             return res.status(404).json({ error: 'Card not found' });
         }
-
-        res.status(200).json(card);
+        res.status(200).json(formatCard(card));
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -25,7 +24,6 @@ const getCardById = async (req, res) => {
 
 const searchCards = async (req, res) => {
     const { q } = req.query;
-
     if (!q) {
         return res.status(400).json({ error: 'Please provide a search query' });
     }
@@ -36,7 +34,7 @@ const searchCards = async (req, res) => {
         const results = await cardModel.find({
             name_normalized: { $regex: safeQuery, $options: 'i' }
         });
-        res.status(200).json(results);
+        res.status(200).json(results.map(formatCard));
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
